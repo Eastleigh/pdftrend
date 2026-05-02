@@ -1,6 +1,7 @@
 import secrets
 import time
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import AsyncGenerator
@@ -27,7 +28,9 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         now = time.time()
         window = now - 60
         self.requests[client_ip] = [t for t in self.requests[client_ip] if t > window]
-        if len(self.requests[client_ip]) >= self.requests_per_minute:
+        if not self.requests[client_ip]:
+            del self.requests[client_ip]
+        if len(self.requests.get(client_ip, [])) >= self.requests_per_minute:
             return JSONResponse(
                 {"detail": "Too many requests. Please try again later."}, status_code=429
             )
@@ -54,6 +57,7 @@ templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
 SESSION_COOKIE = "ptf_session"
 SESSION_STORE: dict[str, int] = {}
+_trend_executor = ThreadPoolExecutor(max_workers=2)
 
 NICHE_CATEGORIES = [
     {"id": "health", "name": "Health & Wellness", "icon": "heart-pulse",
@@ -231,11 +235,9 @@ async def api_trends_search(q: str = "") -> JSONResponse:
         return JSONResponse({"error": "Provide a query (q)"}, status_code=400)
 
     import asyncio
-    from concurrent.futures import ThreadPoolExecutor
 
     from pytrends.request import TrendReq
 
-    executor = ThreadPoolExecutor(max_workers=2)
     loop = asyncio.get_event_loop()
 
     results: dict = {"query": q, "related_queries": [], "interest_over_time": []}
@@ -281,7 +283,7 @@ async def api_trends_search(q: str = "") -> JSONResponse:
 
             return data
 
-        trend_data = await loop.run_in_executor(executor, _fetch_trends)
+        trend_data = await loop.run_in_executor(_trend_executor, _fetch_trends)
         results.update(trend_data)
     except Exception as e:
         results["error"] = str(e)
@@ -334,11 +336,9 @@ async def api_trends_suggestions(q: str = "") -> JSONResponse:
 @app.get("/api/trends/trending")
 async def api_trends_trending() -> JSONResponse:
     import asyncio
-    from concurrent.futures import ThreadPoolExecutor
 
     from pytrends.request import TrendReq
 
-    executor = ThreadPoolExecutor(max_workers=1)
     loop = asyncio.get_event_loop()
 
     try:
@@ -350,7 +350,7 @@ async def api_trends_trending() -> JSONResponse:
                 items.append({"query": row[0]})
             return items
 
-        trending = await loop.run_in_executor(executor, _fetch_trending)
+        trending = await loop.run_in_executor(_trend_executor, _fetch_trending)
     except Exception:
         trending = []
 

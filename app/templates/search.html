@@ -343,10 +343,16 @@ async function fetchSuggestions(q) {
     data.suggestions.forEach(s => {
       const pill = document.createElement('div');
       pill.className = 'suggestion-pill';
-      pill.innerHTML = `
-        <span onclick="searchQuery('${s.replace(/'/g, "\\'")}')">${escHtml(s)}</span>
-        <span class="save-icon" onclick="saveIdea('${s.replace(/'/g, "\\'")}', event)" title="Save idea">+</span>
-      `;
+      const textSpan = document.createElement('span');
+      textSpan.textContent = s;
+      textSpan.addEventListener('click', () => searchQuery(s));
+      const saveSpan = document.createElement('span');
+      saveSpan.className = 'save-icon';
+      saveSpan.textContent = '+';
+      saveSpan.title = 'Save idea';
+      saveSpan.addEventListener('click', (e) => saveIdea(s, e));
+      pill.appendChild(textSpan);
+      pill.appendChild(saveSpan);
       list.appendChild(pill);
     });
   } catch (e) {
@@ -387,12 +393,27 @@ async function fetchTrendData(q) {
       data.related_queries.forEach(item => {
         const row = document.createElement('div');
         row.className = 'query-row';
-        row.innerHTML = `
-          <span class="query-text" onclick="searchQuery('${item.query.replace(/'/g, "\\'")}')">${escHtml(item.query)}</span>
-          <div class="query-bar-wrap"><div class="query-bar" style="width:${item.value}%"></div></div>
-          <span class="query-value">${item.value}</span>
-          <button class="query-save" onclick="saveIdea('${item.query.replace(/'/g, "\\'")}', event)">Save</button>
-        `;
+        const textSpan = document.createElement('span');
+        textSpan.className = 'query-text';
+        textSpan.textContent = item.query;
+        textSpan.addEventListener('click', () => searchQuery(item.query));
+        const barWrap = document.createElement('div');
+        barWrap.className = 'query-bar-wrap';
+        const bar = document.createElement('div');
+        bar.className = 'query-bar';
+        bar.style.width = item.value + '%';
+        barWrap.appendChild(bar);
+        const valSpan = document.createElement('span');
+        valSpan.className = 'query-value';
+        valSpan.textContent = item.value;
+        const saveBtn = document.createElement('button');
+        saveBtn.className = 'query-save';
+        saveBtn.textContent = 'Save';
+        saveBtn.addEventListener('click', (e) => saveIdea(item.query, e));
+        row.appendChild(textSpan);
+        row.appendChild(barWrap);
+        row.appendChild(valSpan);
+        row.appendChild(saveBtn);
         relatedList.appendChild(row);
       });
     } else {
@@ -406,11 +427,20 @@ async function fetchTrendData(q) {
       data.rising_queries.forEach(item => {
         const row = document.createElement('div');
         row.className = 'query-row';
-        row.innerHTML = `
-          <span class="query-text" onclick="searchQuery('${item.query.replace(/'/g, "\\'")}')">${escHtml(item.query)}</span>
-          <span class="rising-badge">+${item.value}%</span>
-          <button class="query-save" onclick="saveIdea('${item.query.replace(/'/g, "\\'")}', event)">Save</button>
-        `;
+        const textSpan = document.createElement('span');
+        textSpan.className = 'query-text';
+        textSpan.textContent = item.query;
+        textSpan.addEventListener('click', () => searchQuery(item.query));
+        const badge = document.createElement('span');
+        badge.className = 'rising-badge';
+        badge.textContent = '+' + item.value + '%';
+        const saveBtn = document.createElement('button');
+        saveBtn.className = 'query-save';
+        saveBtn.textContent = 'Save';
+        saveBtn.addEventListener('click', (e) => saveIdea(item.query, e));
+        row.appendChild(textSpan);
+        row.appendChild(badge);
+        row.appendChild(saveBtn);
         risingList.appendChild(row);
       });
     }
