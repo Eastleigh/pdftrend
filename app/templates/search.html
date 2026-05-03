@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% if query %}{{ query }} — {% endif %}PDF Trend Finder</title>
+  <meta name="description" content="Find trending PDF guide ideas for '{{ query }}' using real-time Google search data. Free forever.">
+  <meta property="og:title" content="{% if query %}{{ query }} — {% endif %}PDF Trend Finder">
+  <meta property="og:description" content="Discover trending PDF guide ideas using real-time search data. 40+ ideas per search.">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary">
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --primary: #6C63FF;
+      --primary-dark: #5A52E0;
+      --primary-light: #8B85FF;
+      --accent: #00D4AA;
+      --bg: #06060B;
+      --bg-card: #0F0F18;
+      --bg-card-hover: #16162A;
+      --text: #EEEEF0;
+      --text-muted: #7878A0;
+      --border: #1E1E35;
+      --success: #22C55E;
+      --danger: #EF4444;
+      --warning: #F59E0B;
+      --radius: 16px;
+      --radius-sm: 10px;
+    }
+    [data-theme="light"] {
+      --primary: #5A52E0; --primary-dark: #4840C0; --primary-light: #6C63FF;
+      --accent: #00B894; --bg: #F5F5FA; --bg-card: #FFFFFF;
+      --bg-card-hover: #F0F0F8; --text: #1A1A2E; --text-muted: #6B6B8A;
+      --border: #E0E0EE; --success: #16A34A; --danger: #DC2626; --warning: #D97706;
+    }
+    [data-theme="light"] body::before { display: none; }
+
+    body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+    body::before {
+      content: '';
+      position: fixed; top: -50%; left: -50%; width: 200%; height: 200%;
+      background:
+        radial-gradient(circle at 20% 20%, rgba(108, 99, 255, 0.06) 0%, transparent 50%),
+        radial-gradient(circle at 80% 80%, rgba(0, 212, 170, 0.04) 0%, transparent 50%);
+      z-index: -1;
+    }
+
+    nav {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 16px 40px; max-width: 1400px; margin: 0 auto;
+    }
+    .logo {
+      font-size: 1.2rem; font-weight: 800; color: var(--text); text-decoration: none;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .logo-icon {
+      width: 28px; height: 28px; background: var(--primary); border-radius: 7px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .logo-icon svg { width: 16px; height: 16px; }
+    .logo span { color: var(--primary); }
+    .nav-links { display: flex; gap: 20px; align-items: center; }
+    .nav-links a { color: var(--text-muted); text-decoration: none; font-size: 0.85rem; font-weight: 500; transition: color 0.2s; }
+    .nav-links a:hover { color: var(--text); }
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 8px; font-family: inherit; font-size: 0.85rem; font-weight: 600; text-decoration: none; cursor: pointer; transition: all 0.2s; border: none; }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover { background: var(--primary-dark); }
+    .btn-outline { background: transparent; color: var(--text); border: 1px solid var(--border); }
+    .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+    .btn-sm { padding: 6px 12px; font-size: 0.8rem; }
+    .btn-save { background: rgba(0, 212, 170, 0.1); color: var(--accent); border: 1px solid rgba(0, 212, 170, 0.2); }
+    .btn-save:hover { background: rgba(0, 212, 170, 0.2); }
+
+    .theme-toggle {
+      width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--border);
+      background: var(--bg-card); color: var(--text-muted); cursor: pointer;
+      display: flex; align-items: center; justify-content: center; transition: all 0.2s;
+    }
+    .theme-toggle:hover { border-color: var(--primary); color: var(--primary); }
+
+    .container { max-width: 1400px; margin: 0 auto; padding: 0 40px 60px; }
+
+    /* Search bar */
+    .search-bar { display: flex; gap: 12px; margin-bottom: 16px; }
+    .search-bar input {
+      flex: 1; padding: 14px 20px; background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 12px; color: var(--text); font-family: inherit; font-size: 1rem; outline: none;
+      transition: border-color 0.2s;
+    }
+    .search-bar input:focus { border-color: var(--primary); }
+    .search-bar input::placeholder { color: var(--text-muted); opacity: 0.5; }
+    .search-bar button {
+      padding: 14px 28px; background: var(--primary); color: white; border: none;
+      border-radius: 12px; font-family: inherit; font-size: 0.95rem; font-weight: 600;
+      cursor: pointer; transition: background 0.2s; white-space: nowrap;
+    }
+    .search-bar button:hover { background: var(--primary-dark); }
+
+    /* Controls row */
+    .controls-row {
+      display: flex; gap: 12px; margin-bottom: 24px; align-items: center; flex-wrap: wrap;
+    }
+    .region-select {
+      padding: 8px 12px; background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 8px; color: var(--text); font-family: inherit; font-size: 0.85rem;
+      outline: none; cursor: pointer;
+    }
+    .region-select option { background: var(--bg-card); color: var(--text); }
+    .compare-btn {
+      padding: 8px 16px; background: rgba(108, 99, 255, 0.08); border: 1px solid rgba(108, 99, 255, 0.2);
+      border-radius: 8px; color: var(--primary-light); font-family: inherit; font-size: 0.85rem;
+      font-weight: 600; cursor: pointer; transition: all 0.2s;
+    }
+    .compare-btn:hover { background: rgba(108, 99, 255, 0.15); }
+
+    /* Recent searches */
+    .recent-searches { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 24px; align-items: center; }
+    .recent-label { font-size: 0.8rem; color: var(--text-muted); font-weight: 600; }
+    .recent-tag {
+      padding: 4px 12px; background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 16px; color: var(--text-muted); font-size: 0.78rem; cursor: pointer;
+      transition: all 0.2s; text-decoration: none;
+    }
+    .recent-tag:hover { border-color: var(--primary); color: var(--primary-light); }
+
+    /* Quick categories */
+    .quick-cats { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 32px; }
+    .quick-cat {
+      padding: 6px 14px; background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 20px; color: var(--text-muted); font-size: 0.8rem; text-decoration: none;
+      transition: all 0.2s; cursor: pointer;
+    }
+    .quick-cat:hover, .quick-cat.active { background: rgba(108, 99, 255, 0.1); border-color: var(--primary); color: var(--primary-light); }
+
+    /* Layout */
+    .results-grid { display: grid; grid-template-columns: 1fr 380px; gap: 24px; }
+
+    .card {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 24px; margin-bottom: 20px;
+    }
+    .card h2 {
+      font-size: 1rem; font-weight: 700; margin-bottom: 16px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .card h2 .count {
+      font-size: 0.75rem; background: rgba(108, 99, 255, 0.15); color: var(--primary-light);
+      padding: 2px 8px; border-radius: 10px; font-weight: 600;
+    }
+
+    /* Skeleton loading */
+    .skeleton {
+      background: linear-gradient(90deg, var(--bg-card-hover) 25%, var(--border) 50%, var(--bg-card-hover) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 8px;
+    }
+    @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+    .skeleton-pill { height: 36px; width: 160px; display: inline-block; margin: 4px; }
+    .skeleton-row { height: 44px; width: 100%; margin-bottom: 8px; }
+    .skeleton-chart { height: 200px; width: 100%; }
+    .skeleton-text { height: 16px; width: 60%; margin-bottom: 8px; }
+    .skeleton-text-sm { height: 12px; width: 40%; }
+
+    /* Suggestion pills */
+    .suggestions-list { display: flex; flex-wrap: wrap; gap: 8px; }
+    .suggestion-pill {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 14px; background: rgba(108, 99, 255, 0.06); border: 1px solid rgba(108, 99, 255, 0.15);
+      border-radius: 10px; font-size: 0.85rem; color: var(--text); cursor: pointer;
+      transition: all 0.2s;
+    }
+    .suggestion-pill:hover { background: rgba(108, 99, 255, 0.12); border-color: var(--primary); }
+    .suggestion-pill .save-icon {
+      width: 18px; height: 18px; display: flex; align-items: center; justify-content: center;
+      border-radius: 50%; font-size: 0.7rem; color: var(--accent); cursor: pointer;
+      transition: all 0.2s; opacity: 0;
+    }
+    .suggestion-pill:hover .save-icon { opacity: 1; }
+
+    /* Related queries table */
+    .query-table { width: 100%; }
+    .query-row {
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 12px; border-radius: 8px; transition: background 0.2s; cursor: pointer;
+    }
+    .query-row:hover { background: var(--bg-card-hover); }
+    .query-text { flex: 1; font-size: 0.9rem; }
+    .query-bar-wrap { width: 120px; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+    .query-bar { height: 100%; background: var(--primary); border-radius: 3px; transition: width 0.5s; }
+    .query-value { font-size: 0.75rem; color: var(--text-muted); min-width: 40px; text-align: right; }
+    .query-save { opacity: 0; transition: opacity 0.2s; background: none; border: none; color: var(--accent); cursor: pointer; font-size: 0.85rem; }
+    .query-row:hover .query-save { opacity: 1; }
+
+    /* Rising badge */
+    .rising-badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 2px 8px; background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.2);
+      border-radius: 6px; font-size: 0.7rem; color: var(--success); font-weight: 600;
+    }
+
+    /* Chart */
+    .chart-wrap { height: 220px; position: relative; }
+
+    /* Competition badge */
+    .competition-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 10px 16px; border-radius: 10px; font-size: 0.85rem; font-weight: 600;
+    }
+    .competition-detail { font-size: 0.8rem; color: var(--text-muted); margin-top: 6px; }
+
+    /* Outline card */
+    .outline-section { margin-bottom: 16px; }
+    .outline-section h4 { font-size: 0.9rem; font-weight: 700; margin-bottom: 8px; color: var(--primary-light); }
+    .outline-section ul { list-style: none; padding: 0; }
+    .outline-section li {
+      padding: 6px 0 6px 16px; font-size: 0.85rem; color: var(--text-muted);
+      position: relative;
+    }
+    .outline-section li::before { content: ''; position: absolute; left: 0; top: 50%; width: 6px; height: 6px; background: var(--primary); border-radius: 50%; transform: translateY(-50%); }
+    .outline-title { font-size: 1.1rem; font-weight: 800; margin-bottom: 4px; }
+    .outline-subtitle { font-size: 0.9rem; color: var(--text-muted); margin-bottom: 16px; }
+    .outline-download {
+      padding: 10px 20px; background: var(--accent); color: #06060B; border: none;
+      border-radius: 8px; font-family: inherit; font-size: 0.85rem; font-weight: 600;
+      cursor: pointer; transition: all 0.2s; margin-top: 12px;
+    }
+    .outline-download:hover { opacity: 0.9; }
+
+    /* Compare modal */
+    .modal-overlay {
+      display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.6); z-index: 200; align-items: center; justify-content: center;
+    }
+    .modal-overlay.show { display: flex; }
+    .modal {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 32px; width: 90%; max-width: 500px;
+    }
+    .modal h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: 16px; }
+    .modal input {
+      width: 100%; padding: 10px 14px; background: var(--bg); border: 1px solid var(--border);
+      border-radius: 8px; color: var(--text); font-family: inherit; font-size: 0.9rem;
+      outline: none; margin-bottom: 10px;
+    }
+    .modal input:focus { border-color: var(--primary); }
+    .modal-actions { display: flex; gap: 10px; margin-top: 16px; }
+
+    /* Trending sidebar */
+    .trending-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 12px; border-radius: 8px; transition: background 0.2s; cursor: pointer;
+    }
+    .trending-item:hover { background: var(--bg-card-hover); }
+    .trending-num {
+      width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;
+      background: rgba(108, 99, 255, 0.1); border-radius: 8px; font-size: 0.75rem;
+      font-weight: 700; color: var(--primary);
+    }
+    .trending-text { flex: 1; font-size: 0.9rem; }
+
+    /* Empty state */
+    .empty-state { text-align: center; padding: 60px 20px; color: var(--text-muted); }
+    .empty-state h3 { font-size: 1.2rem; color: var(--text); margin-bottom: 8px; }
+
+    /* Toast */
+    .toast {
+      position: fixed; bottom: 24px; right: 24px; padding: 14px 24px;
+      background: var(--bg-card); border: 1px solid var(--accent); border-radius: 12px;
+      color: var(--accent); font-size: 0.9rem; font-weight: 600;
+      transform: translateY(100px); opacity: 0; transition: all 0.3s; z-index: 100;
+    }
+    .toast.show { transform: translateY(0); opacity: 1; }
+
+    /* Mobile responsive */
+    @media (max-width: 1000px) {
+      .results-grid { grid-template-columns: 1fr; }
+      .container { padding: 0 16px 40px; }
+      nav { padding: 12px 16px; }
+    }
+    @media (max-width: 768px) {
+      .search-bar { flex-direction: column; }
+      .search-bar button { width: 100%; }
+      .controls-row { flex-direction: column; align-items: stretch; }
+      .nav-links { gap: 10px; }
+      .nav-links a { font-size: 0.78rem; }
+      .btn { padding: 6px 12px; font-size: 0.78rem; }
+      .card { padding: 16px; }
+      .card h2 { font-size: 0.9rem; }
+      .query-bar-wrap { width: 60px; }
+      .modal { width: 95%; padding: 20px; }
+    }
+    @media (max-width: 480px) {
+      .logo { font-size: 1rem; }
+      .logo-icon { width: 24px; height: 24px; }
+      .suggestion-pill { font-size: 0.78rem; padding: 6px 10px; }
+      .quick-cats { gap: 6px; }
+      .quick-cat { font-size: 0.75rem; padding: 5px 10px; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="/" class="logo">
+    <div class="logo-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="4 18 8 12 12 15 16 8 20 10"/>
+        <circle cx="20" cy="10" r="1.5" fill="white"/>
+      </svg>
+    </div>
+    PDF <span>Trend Finder</span>
+  </a>
+  <div class="nav-links">
+    <a href="/search">Search</a>
+    {% if user_id %}
+      <a href="/saved">Saved Ideas</a>
+      <a href="/logout" class="btn btn-outline">Log Out</a>
+    {% else %}
+      <a href="/login" class="btn btn-outline">Log In</a>
+      <a href="/signup" class="btn btn-primary">Sign Up Free</a>
+    {% endif %}
+    <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">
+      <svg id="themeIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.79A9 9 0 1111.21 3a7 7 0 009.79 9.79z"/></svg>
+    </button>
+  </div>
+</nav>
+
+<div class="container">
+
+  <div class="search-bar">
+    <input type="text" id="searchInput" placeholder="Search any niche... (e.g. keto diet, productivity, AI tools)" value="{{ query }}">
+    <button onclick="doSearch()">Find Ideas</button>
+  </div>
+
+  <!-- Controls: Region + Compare -->
+  <div class="controls-row">
+    <select class="region-select" id="regionSelect" title="Select region">
+      {% for r in regions %}
+        <option value="{{ r.code }}" {% if r.code == current_region %}selected{% endif %}>{{ r.name }}</option>
+      {% endfor %}
+    </select>
+    <button class="compare-btn" onclick="openCompareModal()">Compare Topics</button>
+  </div>
+
+  <!-- Recent searches -->
+  {% if recent_searches %}
+  <div class="recent-searches" id="recentSearches">
+    <span class="recent-label">Recent:</span>
+    {% for rs in recent_searches %}
+      <a class="recent-tag" data-query="{{ rs }}" href="#">{{ rs }}</a>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <div class="quick-cats">
+    {% for cat in categories %}
+      <a class="quick-cat" onclick="searchQuery('{{ cat.queries[0] }}')">{{ cat.name }}</a>
+    {% endfor %}
+  </div>
+
+  <div id="emptyState" class="empty-state" {% if query %}style="display:none"{% endif %}>
+    <h3>Search any niche to get started</h3>
+    <p>Enter a topic above to discover trending PDF guide ideas using real-time search data.</p>
+  </div>
+
+  <div id="resultsArea" class="results-grid" style="{% if not query %}display:none{% endif %}">
+    <!-- Left column -->
+    <div>
+      <!-- Suggestions -->
+      <div class="card" id="suggestionsCard">
+        <h2>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+          PDF Guide Ideas <span class="count" id="suggestionsCount">0</span>
+        </h2>
+        <div id="suggestionsLoading">
+          <div style="display:flex;flex-wrap:wrap;gap:8px">
+            <div class="skeleton skeleton-pill"></div><div class="skeleton skeleton-pill" style="width:200px"></div>
+            <div class="skeleton skeleton-pill" style="width:140px"></div><div class="skeleton skeleton-pill" style="width:180px"></div>
+            <div class="skeleton skeleton-pill"></div><div class="skeleton skeleton-pill" style="width:120px"></div>
+          </div>
+        </div>
+        <div id="suggestionsList" class="suggestions-list"></div>
+      </div>
+
+      <!-- Competition score -->
+      <div class="card" id="competitionCard" style="display:none">
+        <h2>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--warning)" stroke-width="2" stroke-linecap="round"><path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/></svg>
+          Competition Level
+        </h2>
+        <div id="competitionContent"></div>
+      </div>
+
+      <!-- Interest over time -->
+      <div class="card" id="chartCard" style="display:none">
+        <h2>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          Interest Over Time (3 months)
+        </h2>
+        <div class="chart-wrap">
+          <canvas id="trendChart"></canvas>
+        </div>
+      </div>
+
+      <!-- PDF Outline Generator -->
+      <div class="card" id="outlineCard" style="display:none">
+        <h2>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+          PDF Outline Generator
+        </h2>
+        <div id="outlineContent"></div>
+      </div>
+
+      <!-- Related queries -->
+      <div class="card" id="relatedCard" style="display:none">
+        <h2>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--warning)" stroke-width="2" stroke-linecap="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          Related Queries <span class="count" id="relatedCount">0</span>
+        </h2>
+        <div id="relatedLoading">
+          <div class="skeleton skeleton-row"></div>
+          <div class="skeleton skeleton-row"></div>
+          <div class="skeleton skeleton-row"></div>
+        </div>
+        <div id="relatedList" class="query-table"></div>
+      </div>
+
+      <!-- Rising queries -->
+      <div class="card" id="risingCard" style="display:none">
+        <h2>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2" stroke-linecap="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+          Rising Queries <span class="count" id="risingCount">0</span>
+        </h2>
+        <div id="risingList" class="query-table"></div>
+      </div>
+    </div>
+
+    <!-- Right column: Trending Now -->
+    <div>
+      <div class="card" id="trendingCard">
+        <h2>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2" stroke-linecap="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+          Trending Now (<span id="trendingRegionLabel">US</span>)
+        </h2>
+        <div id="trendingLoading">
+          <div class="skeleton skeleton-row"></div>
+          <div class="skeleton skeleton-row"></div>
+          <div class="skeleton skeleton-row"></div>
+          <div class="skeleton skeleton-row"></div>
+          <div class="skeleton skeleton-row"></div>
+        </div>
+        <div id="trendingList"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Compare Modal -->
+<div class="modal-overlay" id="compareModal">
+  <div class="modal">
+    <h3>Compare Topics Side by Side</h3>
+    <input type="text" id="compareQ1" placeholder="Topic 1 (e.g. weight loss)">
+    <input type="text" id="compareQ2" placeholder="Topic 2 (e.g. keto diet)">
+    <input type="text" id="compareQ3" placeholder="Topic 3 (optional)">
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="runComparison()">Compare</button>
+      <button class="btn btn-outline" onclick="closeCompareModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Compare results card (hidden until used) -->
+<div class="card" id="compareCard" style="display:none;max-width:1400px;margin:0 auto 20px;padding:24px 40px;">
+  <h2>
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+    Topic Comparison (3 months)
+  </h2>
+  <div class="chart-wrap" style="height:280px">
+    <canvas id="compareChart"></canvas>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let chart = null;
+let compareChart = null;
+const isLoggedIn = {{ 'true' if user_id else 'false' }};
+const COMPARE_COLORS = ['#6C63FF', '#00D4AA', '#F59E0B'];
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+function searchQuery(q) {
+  document.getElementById('searchInput').value = q;
+  doSearch();
+}
+
+function getRegion() {
+  return document.getElementById('regionSelect').value;
+}
+
+function doSearch() {
+  const q = document.getElementById('searchInput').value.trim();
+  if (!q) return;
+
+  const region = getRegion();
+  history.replaceState(null, '', '/search?q=' + encodeURIComponent(q) + '&region=' + region);
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('resultsArea').style.display = 'grid';
+
+  // Record search
+  fetch('/api/recent-search', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query: q })
+  }).catch(() => {});
+
+  fetchSuggestions(q);
+  fetchTrendData(q, region);
+  fetchTrending(region);
+  fetchCompetition(q);
+  fetchOutline(q);
+}
+
+async function fetchSuggestions(q) {
+  const loading = document.getElementById('suggestionsLoading');
+  const list = document.getElementById('suggestionsList');
+  const count = document.getElementById('suggestionsCount');
+  loading.style.display = 'block';
+  list.innerHTML = '';
+
+  try {
+    const resp = await fetch('/api/trends/suggestions?q=' + encodeURIComponent(q));
+    const data = await resp.json();
+    loading.style.display = 'none';
+    count.textContent = data.suggestions.length;
+
+    data.suggestions.forEach(s => {
+      const pill = document.createElement('div');
+      pill.className = 'suggestion-pill';
+      const textSpan = document.createElement('span');
+      textSpan.textContent = s;
+      textSpan.addEventListener('click', () => searchQuery(s));
+      const saveSpan = document.createElement('span');
+      saveSpan.className = 'save-icon';
+      saveSpan.textContent = '+';
+      saveSpan.title = 'Save idea';
+      saveSpan.addEventListener('click', (e) => saveIdea(s, e));
+      pill.appendChild(textSpan);
+      pill.appendChild(saveSpan);
+      list.appendChild(pill);
+    });
+  } catch (e) {
+    loading.style.display = 'none';
+    list.innerHTML = '<p style="color:var(--text-muted)">Could not load suggestions.</p>';
+  }
+}
+
+async function fetchCompetition(q) {
+  const card = document.getElementById('competitionCard');
+  const content = document.getElementById('competitionContent');
+  card.style.display = 'block';
+  content.innerHTML = '<div class="skeleton skeleton-text"></div><div class="skeleton skeleton-text-sm"></div>';
+
+  try {
+    const resp = await fetch('/api/trends/competition?q=' + encodeURIComponent(q));
+    const data = await resp.json();
+    const bgColor = data.color + '15';
+    const borderColor = data.color + '30';
+    content.innerHTML = `
+      <div class="competition-badge" style="background:${bgColor};border:1px solid ${borderColor};color:${data.color}">
+        <span style="font-size:1.2rem">${data.level === 'low' ? '&#9733;' : data.level === 'medium' ? '&#9733;&#9733;' : '&#9733;&#9733;&#9733;'}</span>
+        ${data.label}
+      </div>
+      <div class="competition-detail">${data.result_count > 0 ? data.result_count.toLocaleString() + ' competing PDF results found' : 'Competition data unavailable'}</div>
+    `;
+  } catch (e) {
+    content.innerHTML = '<p style="color:var(--text-muted)">Could not check competition.</p>';
+  }
+}
+
+async function fetchOutline(q) {
+  const card = document.getElementById('outlineCard');
+  const content = document.getElementById('outlineContent');
+  card.style.display = 'block';
+  content.innerHTML = '<div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div>';
+
+  try {
+    const resp = await fetch('/api/trends/outline?q=' + encodeURIComponent(q));
+    const data = await resp.json();
+
+    let html = `<div class="outline-title">${escHtml(data.title)}</div>`;
+    html += `<div class="outline-subtitle">${escHtml(data.subtitle)}</div>`;
+
+    data.sections.forEach(section => {
+      html += '<div class="outline-section">';
+      html += `<h4>${escHtml(section.heading)}</h4><ul>`;
+      section.points.forEach(p => {
+        html += `<li>${escHtml(p)}</li>`;
+      });
+      html += '</ul></div>';
+    });
+
+    html += `<button class="outline-download" onclick="downloadOutline()">Download Outline as Text</button>`;
+    content.innerHTML = html;
+    content._outlineData = data;
+  } catch (e) {
+    content.innerHTML = '<p style="color:var(--text-muted)">Could not generate outline.</p>';
+  }
+}
+
+function downloadOutline() {
+  const data = document.getElementById('outlineContent')._outlineData;
+  if (!data) return;
+
+  let text = data.title + '\n' + data.subtitle + '\n\n';
+  data.sections.forEach((section, i) => {
+    text += (i + 1) + '. ' + section.heading + '\n';
+    section.points.forEach(p => {
+      text += '   - ' + p + '\n';
+    });
+    text += '\n';
+  });
+
+  const blob = new Blob([text], { type: 'text/plain' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'pdf-outline-' + data.title.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '.txt';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+async function fetchTrendData(q, region) {
+  const relatedLoading = document.getElementById('relatedLoading');
+  const relatedList = document.getElementById('relatedList');
+  const relatedCard = document.getElementById('relatedCard');
+  const relatedCount = document.getElementById('relatedCount');
+  const chartCard = document.getElementById('chartCard');
+  const risingCard = document.getElementById('risingCard');
+  const risingList = document.getElementById('risingList');
+  const risingCount = document.getElementById('risingCount');
+
+  relatedCard.style.display = 'block';
+  relatedLoading.style.display = 'block';
+  relatedList.innerHTML = '';
+  chartCard.style.display = 'none';
+  risingCard.style.display = 'none';
+
+  try {
+    const resp = await fetch('/api/trends/search?q=' + encodeURIComponent(q) + '&geo=' + region);
+    const data = await resp.json();
+    relatedLoading.style.display = 'none';
+
+    if (data.interest_over_time && data.interest_over_time.length > 0) {
+      chartCard.style.display = 'block';
+      renderChart(data.interest_over_time, q);
+    }
+
+    if (data.related_queries && data.related_queries.length > 0) {
+      relatedCount.textContent = data.related_queries.length;
+      data.related_queries.forEach(item => {
+        const row = document.createElement('div');
+        row.className = 'query-row';
+        const textSpan = document.createElement('span');
+        textSpan.className = 'query-text';
+        textSpan.textContent = item.query;
+        textSpan.addEventListener('click', () => searchQuery(item.query));
+        const barWrap = document.createElement('div');
+        barWrap.className = 'query-bar-wrap';
+        const bar = document.createElement('div');
+        bar.className = 'query-bar';
+        bar.style.width = item.value + '%';
+        barWrap.appendChild(bar);
+        const valSpan = document.createElement('span');
+        valSpan.className = 'query-value';
+        valSpan.textContent = item.value;
+        const saveBtn = document.createElement('button');
+        saveBtn.className = 'query-save';
+        saveBtn.textContent = 'Save';
+        saveBtn.addEventListener('click', (e) => saveIdea(item.query, e));
+        row.appendChild(textSpan);
+        row.appendChild(barWrap);
+        row.appendChild(valSpan);
+        row.appendChild(saveBtn);
+        relatedList.appendChild(row);
+      });
+    } else {
+      relatedList.innerHTML = '<p style="color:var(--text-muted);font-size:0.9rem;padding:12px">No related queries found. Try a broader topic.</p>';
+    }
+
+    if (data.rising_queries && data.rising_queries.length > 0) {
+      risingCard.style.display = 'block';
+      risingCount.textContent = data.rising_queries.length;
+      data.rising_queries.forEach(item => {
+        const row = document.createElement('div');
+        row.className = 'query-row';
+        const textSpan = document.createElement('span');
+        textSpan.className = 'query-text';
+        textSpan.textContent = item.query;
+        textSpan.addEventListener('click', () => searchQuery(item.query));
+        const badge = document.createElement('span');
+        badge.className = 'rising-badge';
+        badge.textContent = '+' + item.value + '%';
+        const saveBtn = document.createElement('button');
+        saveBtn.className = 'query-save';
+        saveBtn.textContent = 'Save';
+        saveBtn.addEventListener('click', (e) => saveIdea(item.query, e));
+        row.appendChild(textSpan);
+        row.appendChild(badge);
+        row.appendChild(saveBtn);
+        risingList.appendChild(row);
+      });
+    }
+  } catch (e) {
+    relatedLoading.style.display = 'none';
+    relatedList.innerHTML = '<p style="color:var(--text-muted)">Could not load trend data. Try again.</p>';
+  }
+}
+
+function renderChart(data, label) {
+  const ctx = document.getElementById('trendChart').getContext('2d');
+  if (chart) chart.destroy();
+
+  const gradient = ctx.createLinearGradient(0, 0, 0, 200);
+  gradient.addColorStop(0, 'rgba(108, 99, 255, 0.3)');
+  gradient.addColorStop(1, 'rgba(108, 99, 255, 0.0)');
+
+  chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: data.map(d => d.date),
+      datasets: [{
+        label: label,
+        data: data.map(d => d.value),
+        borderColor: '#6C63FF',
+        backgroundColor: gradient,
+        borderWidth: 2,
+        fill: true,
+        tension: 0.4,
+        pointRadius: 0,
+        pointHoverRadius: 5,
+        pointHoverBackgroundColor: '#6C63FF',
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#0F0F18',
+          borderColor: '#1E1E35',
+          borderWidth: 1,
+          titleColor: '#EEEEF0',
+          bodyColor: '#7878A0',
+          padding: 12,
+          cornerRadius: 8,
+        }
+      },
+      scales: {
+        x: {
+          grid: { color: 'rgba(30,30,53,0.5)', drawBorder: false },
+          ticks: { color: '#7878A0', font: { size: 10 }, maxTicksLimit: 8, maxRotation: 0 },
+        },
+        y: {
+          grid: { color: 'rgba(30,30,53,0.5)', drawBorder: false },
+          ticks: { color: '#7878A0', font: { size: 10 } },
+          beginAtZero: true,
+        }
+      },
+      interaction: { intersect: false, mode: 'index' },
+    }
+  });
+}
+
+async function fetchTrending(region) {
+  const loading = document.getElementById('trendingLoading');
+  const list = document.getElementById('trendingList');
+  const label = document.getElementById('trendingRegionLabel');
+  loading.style.display = 'block';
+  list.innerHTML = '';
+  label.textContent = region || 'US';
+
+  try {
+    const resp = await fetch('/api/trends/trending?region=' + (region || 'US'));
+    const data = await resp.json();
+    loading.style.display = 'none';
+
+    data.trending.forEach((item, i) => {
+      const el = document.createElement('div');
+      el.className = 'trending-item';
+      el.addEventListener('click', () => searchQuery(item.query));
+      const num = document.createElement('span');
+      num.className = 'trending-num';
+      num.textContent = i + 1;
+      const text = document.createElement('span');
+      text.className = 'trending-text';
+      text.textContent = item.query;
+      el.appendChild(num);
+      el.appendChild(text);
+      list.appendChild(el);
+    });
+  } catch (e) {
+    loading.style.display = 'none';
+    list.innerHTML = '<p style="color:var(--text-muted)">Could not load trending.</p>';
+  }
+}
+
+// Compare topics
+function openCompareModal() {
+  const q = document.getElementById('searchInput').value.trim();
+  if (q) document.getElementById('compareQ1').value = q;
+  document.getElementById('compareModal').classList.add('show');
+}
+function closeCompareModal() {
+  document.getElementById('compareModal').classList.remove('show');
+}
+
+async function runComparison() {
+  const q1 = document.getElementById('compareQ1').value.trim();
+  const q2 = document.getElementById('compareQ2').value.trim();
+  const q3 = document.getElementById('compareQ3').value.trim();
+  if (!q1 || !q2) { showToast('Enter at least 2 topics'); return; }
+
+  closeCompareModal();
+  const card = document.getElementById('compareCard');
+  card.style.display = 'block';
+  card.scrollIntoView({ behavior: 'smooth' });
+
+  const region = getRegion();
+  let url = '/api/trends/compare?q1=' + encodeURIComponent(q1) + '&q2=' + encodeURIComponent(q2) + '&geo=' + region;
+  if (q3) url += '&q3=' + encodeURIComponent(q3);
+
+  try {
+    const resp = await fetch(url);
+    const data = await resp.json();
+
+    if (!data.dates || data.dates.length === 0) {
+      card.innerHTML = '<p style="color:var(--text-muted);padding:20px">No comparison data available.</p>';
+      return;
+    }
+
+    const ctx = document.getElementById('compareChart').getContext('2d');
+    if (compareChart) compareChart.destroy();
+
+    const datasets = data.queries.map((q, i) => ({
+      label: q,
+      data: data.series[q] || [],
+      borderColor: COMPARE_COLORS[i],
+      backgroundColor: 'transparent',
+      borderWidth: 2,
+      tension: 0.4,
+      pointRadius: 0,
+      pointHoverRadius: 5,
+    }));
+
+    compareChart = new Chart(ctx, {
+      type: 'line',
+      data: { labels: data.dates, datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { labels: { color: '#7878A0', font: { size: 12 } } },
+          tooltip: { backgroundColor: '#0F0F18', borderColor: '#1E1E35', borderWidth: 1, titleColor: '#EEEEF0', bodyColor: '#7878A0', padding: 12, cornerRadius: 8 }
+        },
+        scales: {
+          x: { grid: { color: 'rgba(30,30,53,0.5)' }, ticks: { color: '#7878A0', font: { size: 10 }, maxTicksLimit: 8, maxRotation: 0 } },
+          y: { grid: { color: 'rgba(30,30,53,0.5)' }, ticks: { color: '#7878A0', font: { size: 10 } }, beginAtZero: true }
+        },
+        interaction: { intersect: false, mode: 'index' },
+      }
+    });
+  } catch (e) {
+    card.innerHTML = '<p style="color:var(--text-muted);padding:20px">Could not compare topics.</p>';
+  }
+}
+
+async function saveIdea(query, event) {
+  if (event) event.stopPropagation();
+  if (!isLoggedIn) {
+    showToast('Sign up free to save ideas');
+    return;
+  }
+  try {
+    const resp = await fetch('/api/trends/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: query })
+    });
+    if (resp.ok) {
+      showToast('Idea saved!');
+    } else {
+      const data = await resp.json();
+      showToast(data.detail || 'Error saving');
+    }
+  } catch (e) {
+    showToast('Error saving idea');
+  }
+}
+
+function escHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+// Theme
+function toggleTheme() {
+  const html = document.documentElement;
+  const current = html.getAttribute('data-theme') || 'dark';
+  const next = current === 'dark' ? 'light' : 'dark';
+  html.setAttribute('data-theme', next);
+  localStorage.setItem('ptf-theme', next);
+  updateThemeIcon(next);
+}
+function updateThemeIcon(theme) {
+  const icon = document.getElementById('themeIcon');
+  if (!icon) return;
+  icon.innerHTML = theme === 'light'
+    ? '<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>'
+    : '<path d="M21 12.79A9 9 0 1111.21 3a7 7 0 009.79 9.79z"/>';
+}
+(function() {
+  const saved = localStorage.getItem('ptf-theme');
+  if (saved) {
+    document.documentElement.setAttribute('data-theme', saved);
+    updateThemeIcon(saved);
+  }
+})();
+
+// Handle Enter key
+document.getElementById('searchInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doSearch();
+});
+
+// Region change triggers re-search
+document.getElementById('regionSelect').addEventListener('change', () => {
+  const q = document.getElementById('searchInput').value.trim();
+  if (q) doSearch();
+});
+
+// Recent tag clicks
+document.querySelectorAll('.recent-tag[data-query]').forEach(tag => {
+  tag.addEventListener('click', e => {
+    e.preventDefault();
+    searchQuery(tag.getAttribute('data-query'));
+  });
+});
+
+// Auto-search if query provided
+{% if query %}
+  doSearch();
+{% endif %}
+</script>
+</body>
+</html>
