@@ -44,9 +44,17 @@ async def init_db() -> None:
                 FOREIGN KEY (user_id) REFERENCES users(id)
             );
 
+            CREATE TABLE IF NOT EXISTS recent_searches (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id TEXT NOT NULL,
+                query TEXT NOT NULL,
+                searched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+
             CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
             CREATE INDEX IF NOT EXISTS idx_saved_trends_user ON saved_trends(user_id);
             CREATE INDEX IF NOT EXISTS idx_search_history_user ON search_history(user_id);
+            CREATE INDEX IF NOT EXISTS idx_recent_searches_session ON recent_searches(session_id);
         """)
         await db.commit()
     finally:

@@ -5,6 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PDF Trend Finder — Discover What PDF Guides to Create & Sell</title>
   <meta name="description" content="Find trending topics and questions people are searching for right now. Create PDF guides that sell using real-time search data. Free forever.">
+  <meta property="og:title" content="PDF Trend Finder — Discover What PDF Guides to Create & Sell">
+  <meta property="og:description" content="Stop guessing. Use real-time Google search data to discover problems people are desperate to solve — then create PDF guides that sell. 100% free.">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="/static/favicon.svg">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="PDF Trend Finder — Free Trending PDF Ideas Tool">
+  <meta name="twitter:description" content="Find trending PDF guide ideas using real-time Google search data. 40+ ideas per search. Free forever.">
+  <link rel="canonical" href="/">
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -29,6 +37,32 @@
       --radius: 16px;
       --radius-sm: 10px;
     }
+
+    [data-theme="light"] {
+      --primary: #5A52E0;
+      --primary-dark: #4840C0;
+      --primary-light: #6C63FF;
+      --accent: #00B894;
+      --accent-dark: #009D80;
+      --bg: #F5F5FA;
+      --bg-card: #FFFFFF;
+      --bg-card-hover: #F0F0F8;
+      --text: #1A1A2E;
+      --text-muted: #6B6B8A;
+      --border: #E0E0EE;
+      --success: #16A34A;
+      --danger: #DC2626;
+      --warning: #D97706;
+    }
+
+    [data-theme="light"] body::before { display: none; }
+
+    .theme-toggle {
+      width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--border);
+      background: var(--bg-card); color: var(--text-muted); cursor: pointer;
+      display: flex; align-items: center; justify-content: center; transition: all 0.2s;
+    }
+    .theme-toggle:hover { border-color: var(--primary); color: var(--primary); }
 
     body {
       font-family: 'Inter', -apple-system, sans-serif;
@@ -485,10 +519,18 @@
     }
 
     @media (max-width: 600px) {
-      h1 { font-size: 2rem; }
+      h1 { font-size: 1.8rem; }
       .categories { grid-template-columns: 1fr; }
       .hero { padding: 50px 16px 40px; }
-      .nav-links { gap: 12px; }
+      .hero-search { flex-direction: column; }
+      .hero-search button { width: 100%; }
+      .nav-links { gap: 10px; }
+      .nav-links a { font-size: 0.78rem; }
+      .btn { padding: 6px 12px; font-size: 0.78rem; }
+      .hero p { font-size: 0.95rem; }
+      .hero-tags { gap: 6px; }
+      .hero-tags a { font-size: 0.75rem; padding: 5px 10px; }
+      .section { padding: 40px 16px; }
     }
   </style>
 </head>
@@ -513,6 +555,9 @@
       <a href="/login" class="btn btn-outline">Log In</a>
       <a href="/signup" class="btn btn-primary">Sign Up Free</a>
     {% endif %}
+    <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">
+      <svg id="themeIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.79A9 9 0 1111.21 3a7 7 0 009.79 9.79z"/></svg>
+    </button>
   </div>
 </nav>
 
@@ -646,5 +691,29 @@
   &copy; 2025 PDF Trend Finder. Built with real-time Google search data.
 </footer>
 
+<script>
+function toggleTheme() {
+  const html = document.documentElement;
+  const current = html.getAttribute('data-theme') || 'dark';
+  const next = current === 'dark' ? 'light' : 'dark';
+  html.setAttribute('data-theme', next);
+  localStorage.setItem('ptf-theme', next);
+  updateThemeIcon(next);
+}
+function updateThemeIcon(theme) {
+  const icon = document.getElementById('themeIcon');
+  if (!icon) return;
+  icon.innerHTML = theme === 'light'
+    ? '<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>'
+    : '<path d="M21 12.79A9 9 0 1111.21 3a7 7 0 009.79 9.79z"/>';
+}
+(function() {
+  const saved = localStorage.getItem('ptf-theme');
+  if (saved) {
+    document.documentElement.setAttribute('data-theme', saved);
+    updateThemeIcon(saved);
+  }
+})();
+</script>
 </body>
 </html>
