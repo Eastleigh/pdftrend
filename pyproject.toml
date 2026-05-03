@@ -17,6 +17,7 @@ dependencies = [
     "bcrypt>=4.2.0",
     "pytrends>=4.9.2",
     "httpx>=0.27.0",
+    "stripe>=5.4.0",
 ]
 
 [project.optional-dependencies]
