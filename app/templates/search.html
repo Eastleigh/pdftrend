@@ -352,7 +352,7 @@
   <div class="recent-searches" id="recentSearches">
     <span class="recent-label">Recent:</span>
     {% for rs in recent_searches %}
-      <a class="recent-tag" onclick="searchQuery('{{ rs }}')">{{ rs }}</a>
+      <a class="recent-tag" data-query="{{ rs }}" href="#">{{ rs }}</a>
     {% endfor %}
   </div>
   {% endif %}
@@ -948,6 +948,14 @@ document.getElementById('searchInput').addEventListener('keydown', e => {
 document.getElementById('regionSelect').addEventListener('change', () => {
   const q = document.getElementById('searchInput').value.trim();
   if (q) doSearch();
+});
+
+// Recent tag clicks
+document.querySelectorAll('.recent-tag[data-query]').forEach(tag => {
+  tag.addEventListener('click', e => {
+    e.preventDefault();
+    searchQuery(tag.getAttribute('data-query'));
+  });
 });
 
 // Auto-search if query provided
