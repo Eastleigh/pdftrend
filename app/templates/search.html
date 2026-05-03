@@ -320,7 +320,7 @@
     {% if user_id %}
       <a href="/saved">Saved Ideas</a>
       {% if not is_premium %}
-        <a href="/pricing" class="btn btn-primary" style="background:var(--accent);">Upgrade — $67</a>
+        <a href="/pricing" class="btn btn-primary" style="background:var(--accent);">Upgrade — $25</a>
       {% endif %}
       <a href="/logout" class="btn btn-outline">Log Out</a>
     {% else %}
@@ -504,7 +504,7 @@
     <h3 id="upgradeTitle" style="margin-bottom:8px;">Premium Feature</h3>
     <p id="upgradeDesc" style="color:var(--text-muted);font-size:0.9rem;margin-bottom:20px;line-height:1.5;">Upgrade to unlock this feature.</p>
     <div class="modal-actions" style="justify-content:center;">
-      <a href="/pricing" class="btn btn-primary" style="background:var(--accent);">Upgrade — $67 Lifetime</a>
+      <a href="/pricing" class="btn btn-primary" style="background:var(--accent);">Upgrade — $25 Lifetime</a>
       <button class="btn btn-outline" onclick="closeUpgradeModal()">Maybe Later</button>
     </div>
   </div>
@@ -662,7 +662,7 @@ async function fetchOutline(q) {
       <div style="text-align:center;padding:20px;">
         <div style="font-size:1.5rem;margin-bottom:8px;">&#128274;</div>
         <p style="color:var(--text-muted);margin-bottom:12px;">PDF outline generation is a Premium feature.</p>
-        <a href="/pricing" class="btn btn-primary" style="background:var(--accent);font-size:0.85rem;">Upgrade — $67 Lifetime</a>
+        <a href="/pricing" class="btn btn-primary" style="background:var(--accent);font-size:0.85rem;">Upgrade — $25 Lifetime</a>
       </div>`;
     return;
   }

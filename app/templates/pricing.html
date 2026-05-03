@@ -4,9 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Pricing — PDF Trend Finder</title>
-  <meta name="description" content="Get lifetime access to PDF Trend Finder Premium for just $67. Unlimited searches, save ideas, export CSV, generate outlines, compare topics.">
+  <meta name="description" content="Get lifetime access to PDF Trend Finder Premium for just $25. Unlimited searches, save ideas, export CSV, generate outlines, compare topics.">
   <meta property="og:title" content="Pricing — PDF Trend Finder">
-  <meta property="og:description" content="Lifetime access for $67. Unlimited searches, save ideas, export CSV, generate outlines, compare topics — forever.">
+  <meta property="og:description" content="Lifetime access for $25. Unlimited searches, save ideas, export CSV, generate outlines, compare topics — forever.">
   <meta property="og:type" content="website">
   <meta name="twitter:card" content="summary">
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
@@ -218,9 +218,9 @@
       <div class="plan-badge">Best Value</div>
       <div class="plan-name">Lifetime Premium</div>
       <div class="plan-price">
-        <span class="amount">$67</span>
+        <span class="amount">$25</span>
         <span class="period">one-time</span>
-        <span class="was">$197</span>
+        <span class="was">$67</span>
       </div>
       <ul class="plan-features">
         <li><span class="check">&#10003;</span> <strong>Unlimited</strong> searches</li>
@@ -235,14 +235,14 @@
         <li><span class="check">&#10003;</span> <strong>Topic comparison charts</strong></li>
       </ul>
       <button class="plan-cta plan-cta-premium" id="checkoutBtn">
-        Get Lifetime Access — $67
+        Get Lifetime Access — $25
       </button>
     </div>
   </div>
 
   <div class="guarantee">
     <strong>No subscriptions. No hidden fees.</strong> Pay once and get every current and future feature — forever.
-    This is the same tool others charge $197 for.
+    This is the same tool others charge $25 for — and we match it with more features.
   </div>
 
   {% endif %}
@@ -251,7 +251,7 @@
     <h2>Frequently Asked Questions</h2>
     <div class="faq-item">
       <div class="faq-q">Is this really a one-time payment? <span class="faq-arrow">&#9662;</span></div>
-      <div class="faq-a">Yes. Pay $67 once and you get lifetime access. No monthly fees, no annual renewals, no hidden charges. Ever.</div>
+      <div class="faq-a">Yes. Pay $25 once and you get lifetime access. No monthly fees, no annual renewals, no hidden charges. Ever.</div>
     </div>
     <div class="faq-item">
       <div class="faq-q">What's included in the free plan? <span class="faq-arrow">&#9662;</span></div>
@@ -259,7 +259,7 @@
     </div>
     <div class="faq-item">
       <div class="faq-q">How does PDF Trend Finder compare to PDF Trend Lab? <span class="faq-arrow">&#9662;</span></div>
-      <div class="faq-a">PDF Trend Lab charges $197 for lifetime access. We offer more features (40+ suggestions per search, competition scoring, outline generation, topic comparison) for just $67 — less than half the price.</div>
+      <div class="faq-a">PDF Trend Lab charges $25 for lifetime access. We match their price at $25 but offer way more features — 40+ suggestions per search, competition scoring, outline generation, topic comparison, and CSV export.</div>
     </div>
     <div class="faq-item">
       <div class="faq-q">Can I use this tool to find PDF guide ideas? <span class="faq-arrow">&#9662;</span></div>
@@ -327,12 +327,12 @@ if (checkoutBtn) {
           setTimeout(() => { window.location.href = '/signup'; }, 1500);
         }
         checkoutBtn.disabled = false;
-        checkoutBtn.textContent = 'Get Lifetime Access — $67';
+        checkoutBtn.textContent = 'Get Lifetime Access — $25';
       }
     } catch (e) {
       showToast('Something went wrong. Please try again.');
       checkoutBtn.disabled = false;
-      checkoutBtn.textContent = 'Get Lifetime Access — $67';
+      checkoutBtn.textContent = 'Get Lifetime Access — $25';
     }
   });
 }

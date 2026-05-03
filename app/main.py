@@ -31,7 +31,7 @@ from .database import get_db, init_db
 STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY", "")
 STRIPE_PUBLISHABLE_KEY = os.getenv("STRIPE_PUBLISHABLE_KEY", "")
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
-LIFETIME_PRICE_CENTS = 6700  # $67
+LIFETIME_PRICE_CENTS = 2500  # $25
 FREE_DAILY_SEARCH_LIMIT = 5
 
 if STRIPE_SECRET_KEY:
@@ -463,7 +463,7 @@ async def api_trends_compare(
     user_id = get_current_user_id(request)
     if not await is_user_premium(user_id):
         return JSONResponse({
-            "error": "Topic comparison is a Premium feature. Upgrade for $67 one-time.",
+            "error": "Topic comparison is a Premium feature. Upgrade for $25 one-time.",
             "premium_required": True,
         }, status_code=403)
 
@@ -632,7 +632,7 @@ async def api_trends_outline(request: Request, q: str = "") -> JSONResponse:
     user_id = get_current_user_id(request)
     if not await is_user_premium(user_id):
         return JSONResponse({
-            "error": "PDF outline generation is a Premium feature. Upgrade for $67 one-time.",
+            "error": "PDF outline generation is a Premium feature. Upgrade for $25 one-time.",
             "premium_required": True,
         }, status_code=403)
 
@@ -757,7 +757,7 @@ async def api_trends_save(request: Request) -> JSONResponse:
         raise HTTPException(status_code=401, detail="Login required to save trends")
     if not await is_user_premium(user_id):
         return JSONResponse({
-            "error": "Saving ideas is a Premium feature. Upgrade for $67 one-time.",
+            "error": "Saving ideas is a Premium feature. Upgrade for $25 one-time.",
             "premium_required": True,
         }, status_code=403)
 
@@ -807,7 +807,7 @@ async def api_trends_export(request: Request) -> StreamingResponse | JSONRespons
         raise HTTPException(status_code=401, detail="Login required to export")
     if not await is_user_premium(user_id):
         return JSONResponse({
-            "error": "CSV export is a Premium feature. Upgrade for $67 one-time.",
+            "error": "CSV export is a Premium feature. Upgrade for $25 one-time.",
             "premium_required": True,
         }, status_code=403)
 
