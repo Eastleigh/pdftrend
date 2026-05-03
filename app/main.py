@@ -945,18 +945,19 @@ async def payment_webhook(request: Request) -> JSONResponse:
     payload = await request.body()
     sig_header = request.headers.get("stripe-signature", "")
 
-    if STRIPE_WEBHOOK_SECRET:
-        try:
-            event = stripe.Webhook.construct_event(
-                payload, sig_header, STRIPE_WEBHOOK_SECRET,
-            )
-        except (ValueError, stripe.SignatureVerificationError):
-            return JSONResponse(
-                {"error": "Invalid signature"}, status_code=400,
-            )
-    else:
-        import json
-        event = json.loads(payload)
+    if not STRIPE_WEBHOOK_SECRET:
+        return JSONResponse(
+            {"error": "Webhook not configured"}, status_code=503,
+        )
+
+    try:
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, STRIPE_WEBHOOK_SECRET,
+        )
+    except (ValueError, stripe.SignatureVerificationError):
+        return JSONResponse(
+            {"error": "Invalid signature"}, status_code=400,
+        )
 
     if event.get("type") == "checkout.session.completed":
         session_data = event["data"]["object"]

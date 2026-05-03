@@ -737,6 +737,19 @@ async function fetchTrendData(q, region) {
     const data = await resp.json();
     relatedLoading.style.display = 'none';
 
+    if (data.limit_reached) {
+      remainingSearches = 0;
+      updateSearchCounter();
+      showUpgradeModal('search_limit');
+      relatedList.innerHTML = '<p style="color:var(--text-muted);font-size:0.9rem;padding:12px">Daily search limit reached. <a href="/pricing" style="color:var(--accent);">Upgrade to Premium</a> for unlimited searches.</p>';
+      return;
+    }
+
+    if (data.error && !resp.ok) {
+      relatedList.innerHTML = '<p style="color:var(--text-muted);font-size:0.9rem;padding:12px">' + escHtml(data.error) + '</p>';
+      return;
+    }
+
     if (data.interest_over_time && data.interest_over_time.length > 0) {
       chartCard.style.display = 'block';
       renderChart(data.interest_over_time, q);
