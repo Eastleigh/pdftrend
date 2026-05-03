@@ -1,21 +1,41 @@
 import csv
 import io
+import os
 import secrets
 import time
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
+from datetime import date
 from pathlib import Path
 from typing import AsyncGenerator
 
 import bcrypt
+import stripe
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response, StreamingResponse
+from fastapi.responses import (
+    HTMLResponse,
+    JSONResponse,
+    RedirectResponse,
+    Response,
+    StreamingResponse,
+)
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from .database import get_db, init_db
+
+# ─── Stripe Config ────────────────────────────────────────────────
+
+STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY", "")
+STRIPE_PUBLISHABLE_KEY = os.getenv("STRIPE_PUBLISHABLE_KEY", "")
+STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
+LIFETIME_PRICE_CENTS = 2500  # $25
+FREE_DAILY_SEARCH_LIMIT = 5
+
+if STRIPE_SECRET_KEY:
+    stripe.api_key = STRIPE_SECRET_KEY
 
 # ─── Rate Limiting ────────────────────────────────────────────────
 
@@ -117,6 +137,78 @@ def _get_session_id(request: Request) -> str:
     return secrets.token_urlsafe(16)
 
 
+async def is_user_premium(user_id: int | None) -> bool:
+    if not user_id:
+        return False
+    db = await get_db()
+    try:
+        cursor = await db.execute("SELECT is_premium FROM users WHERE id = ?", (user_id,))
+        row = await cursor.fetchone()
+        return bool(row and row["is_premium"])
+    finally:
+        await db.close()
+
+
+async def check_search_limit(request: Request, user_id: int | None) -> bool:
+    """Returns True if user can search, False if limit reached."""
+    if user_id and await is_user_premium(user_id):
+        return True
+
+    client_ip = request.client.host if request.client else "unknown"
+    identifier = f"user:{user_id}" if user_id else f"ip:{client_ip}"
+    today = date.today().isoformat()
+
+    db = await get_db()
+    try:
+        cursor = await db.execute(
+            "SELECT search_count FROM daily_searches "
+            "WHERE user_identifier = ? AND search_date = ?",
+            (identifier, today),
+        )
+        row = await cursor.fetchone()
+        if row:
+            if row["search_count"] >= FREE_DAILY_SEARCH_LIMIT:
+                return False
+            await db.execute(
+                "UPDATE daily_searches SET search_count = search_count + 1 "
+                "WHERE user_identifier = ? AND search_date = ?",
+                (identifier, today),
+            )
+        else:
+            await db.execute(
+                "INSERT INTO daily_searches "
+                "(user_identifier, search_date, search_count) "
+                "VALUES (?, ?, 1)",
+                (identifier, today),
+            )
+        await db.commit()
+        return True
+    finally:
+        await db.close()
+
+
+async def get_remaining_searches(request: Request, user_id: int | None) -> int:
+    if user_id and await is_user_premium(user_id):
+        return -1  # unlimited
+
+    client_ip = request.client.host if request.client else "unknown"
+    identifier = f"user:{user_id}" if user_id else f"ip:{client_ip}"
+    today = date.today().isoformat()
+
+    db = await get_db()
+    try:
+        cursor = await db.execute(
+            "SELECT search_count FROM daily_searches "
+            "WHERE user_identifier = ? AND search_date = ?",
+            (identifier, today),
+        )
+        row = await cursor.fetchone()
+        used = row["search_count"] if row else 0
+        return max(0, FREE_DAILY_SEARCH_LIMIT - used)
+    finally:
+        await db.close()
+
+
 # ─── Pages ────────────────────────────────────────────────────────
 
 @app.get("/", response_class=HTMLResponse)
@@ -133,6 +225,8 @@ async def search_page(request: Request) -> HTMLResponse:
     q = request.query_params.get("q", "")
     region = request.query_params.get("region", "US")
     session_id = _get_session_id(request)
+    premium = await is_user_premium(user_id)
+    remaining = await get_remaining_searches(request, user_id)
 
     db = await get_db()
     try:
@@ -149,7 +243,8 @@ async def search_page(request: Request) -> HTMLResponse:
         request, "search.html", {
             "user_id": user_id, "query": q, "categories": NICHE_CATEGORIES,
             "regions": SUPPORTED_REGIONS, "current_region": region,
-            "recent_searches": recent,
+            "recent_searches": recent, "is_premium": premium,
+            "remaining_searches": remaining,
         }
     )
     if not request.cookies.get(RECENT_COOKIE):
@@ -163,6 +258,10 @@ async def saved_page(request: Request) -> HTMLResponse:
     if not user_id:
         return RedirectResponse("/login", status_code=302)
 
+    premium = await is_user_premium(user_id)
+    if not premium:
+        return RedirectResponse("/pricing", status_code=302)
+
     db = await get_db()
     try:
         cursor = await db.execute(
@@ -174,7 +273,7 @@ async def saved_page(request: Request) -> HTMLResponse:
         await db.close()
 
     return templates.TemplateResponse(
-        request, "saved.html", {"user_id": user_id, "saved_trends": saved}
+        request, "saved.html", {"user_id": user_id, "saved_trends": saved, "is_premium": True}
     )
 
 
@@ -186,6 +285,18 @@ async def login_page(request: Request) -> HTMLResponse:
 @app.get("/signup", response_class=HTMLResponse)
 async def signup_page(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(request, "auth.html", {"mode": "signup", "error": None})
+
+
+@app.get("/pricing", response_class=HTMLResponse)
+async def pricing_page(request: Request) -> HTMLResponse:
+    user_id = get_current_user_id(request)
+    premium = await is_user_premium(user_id)
+    return templates.TemplateResponse(
+        request, "pricing.html", {
+            "user_id": user_id, "is_premium": premium,
+            "stripe_publishable_key": STRIPE_PUBLISHABLE_KEY,
+        }
+    )
 
 
 # ─── Auth API ─────────────────────────────────────────────────────
@@ -274,9 +385,19 @@ async def logout(request: Request) -> RedirectResponse:
 # ─── Trend API ────────────────────────────────────────────────────
 
 @app.get("/api/trends/search")
-async def api_trends_search(q: str = "", geo: str = "US") -> JSONResponse:
+async def api_trends_search(request: Request, q: str = "", geo: str = "US") -> JSONResponse:
     if not q:
         return JSONResponse({"error": "Provide a query (q)"}, status_code=400)
+
+    user_id = get_current_user_id(request)
+    can_search = await check_search_limit(request, user_id)
+    if not can_search:
+        remaining = await get_remaining_searches(request, user_id)
+        return JSONResponse({
+            "error": "Daily search limit reached. Upgrade to Premium for unlimited searches.",
+            "limit_reached": True,
+            "remaining": remaining,
+        }, status_code=429)
 
     import asyncio
 
@@ -337,8 +458,15 @@ async def api_trends_search(q: str = "", geo: str = "US") -> JSONResponse:
 
 @app.get("/api/trends/compare")
 async def api_trends_compare(
-    q1: str = "", q2: str = "", q3: str = "", geo: str = "US"
+    request: Request, q1: str = "", q2: str = "", q3: str = "", geo: str = "US"
 ) -> JSONResponse:
+    user_id = get_current_user_id(request)
+    if not await is_user_premium(user_id):
+        return JSONResponse({
+            "error": "Topic comparison is a Premium feature. Upgrade for $25 one-time.",
+            "premium_required": True,
+        }, status_code=403)
+
     queries = [q for q in [q1, q2, q3] if q.strip()]
     if len(queries) < 2:
         return JSONResponse(
@@ -500,7 +628,14 @@ async def api_trends_competition(q: str = "") -> JSONResponse:
 
 
 @app.get("/api/trends/outline")
-async def api_trends_outline(q: str = "") -> JSONResponse:
+async def api_trends_outline(request: Request, q: str = "") -> JSONResponse:
+    user_id = get_current_user_id(request)
+    if not await is_user_premium(user_id):
+        return JSONResponse({
+            "error": "PDF outline generation is a Premium feature. Upgrade for $25 one-time.",
+            "premium_required": True,
+        }, status_code=403)
+
     if not q:
         return JSONResponse({"error": "Provide a query (q)"}, status_code=400)
 
@@ -596,8 +731,11 @@ async def api_record_search(request: Request) -> JSONResponse:
             (session_id, query),
         )
         await db.execute(
-            "DELETE FROM recent_searches WHERE session_id = ? AND id NOT IN "
-            "(SELECT id FROM recent_searches WHERE session_id = ? ORDER BY searched_at DESC LIMIT 10)",
+            "DELETE FROM recent_searches "
+            "WHERE session_id = ? AND id NOT IN "
+            "(SELECT id FROM recent_searches "
+            "WHERE session_id = ? "
+            "ORDER BY searched_at DESC LIMIT 10)",
             (session_id, session_id),
         )
         await db.commit()
@@ -617,6 +755,11 @@ async def api_trends_save(request: Request) -> JSONResponse:
     user_id = get_current_user_id(request)
     if not user_id:
         raise HTTPException(status_code=401, detail="Login required to save trends")
+    if not await is_user_premium(user_id):
+        return JSONResponse({
+            "error": "Saving ideas is a Premium feature. Upgrade for $25 one-time.",
+            "premium_required": True,
+        }, status_code=403)
 
     body = await request.json()
     query = str(body.get("query", "")).strip()
@@ -657,11 +800,16 @@ async def api_trends_unsave(request: Request, trend_id: int) -> JSONResponse:
     return JSONResponse({"status": "deleted"})
 
 
-@app.get("/api/trends/export")
-async def api_trends_export(request: Request) -> StreamingResponse:
+@app.get("/api/trends/export", response_model=None)
+async def api_trends_export(request: Request) -> StreamingResponse | JSONResponse:
     user_id = get_current_user_id(request)
     if not user_id:
         raise HTTPException(status_code=401, detail="Login required to export")
+    if not await is_user_premium(user_id):
+        return JSONResponse({
+            "error": "CSV export is a Premium feature. Upgrade for $25 one-time.",
+            "premium_required": True,
+        }, status_code=403)
 
     db = await get_db()
     try:
@@ -686,6 +834,162 @@ async def api_trends_export(request: Request) -> StreamingResponse:
         media_type="text/csv",
         headers={"Content-Disposition": "attachment; filename=pdf-trend-ideas.csv"},
     )
+
+
+# ─── Premium / Payment API ────────────────────────────────────────
+
+@app.get("/api/premium-status")
+async def api_premium_status(request: Request) -> JSONResponse:
+    user_id = get_current_user_id(request)
+    premium = await is_user_premium(user_id)
+    remaining = await get_remaining_searches(request, user_id)
+    return JSONResponse({
+        "is_premium": premium,
+        "remaining_searches": remaining,
+        "daily_limit": FREE_DAILY_SEARCH_LIMIT,
+    })
+
+
+@app.post("/api/checkout")
+async def api_checkout(request: Request) -> JSONResponse:
+    user_id = get_current_user_id(request)
+    if not user_id:
+        return JSONResponse({"error": "Please sign up or log in first."}, status_code=401)
+
+    if await is_user_premium(user_id):
+        return JSONResponse({"error": "You already have lifetime access!"}, status_code=400)
+
+    if not STRIPE_SECRET_KEY:
+        return JSONResponse({"error": "Payment system not configured."}, status_code=503)
+
+    origin = str(request.base_url).rstrip("/")
+
+    try:
+        session = stripe.checkout.Session.create(
+            payment_method_types=["card"],
+            line_items=[{
+                "price_data": {
+                    "currency": "usd",
+                    "product_data": {
+                        "name": "PDF Trend Finder — Lifetime Premium",
+                        "description": (
+                            "One-time payment. Unlimited searches, "
+                            "save ideas, export CSV, generate outlines, "
+                            "compare topics \u2014 forever."
+                        ),
+                    },
+                    "unit_amount": LIFETIME_PRICE_CENTS,
+                },
+                "quantity": 1,
+            }],
+            mode="payment",
+            success_url=f"{origin}/checkout-success?session_id={{CHECKOUT_SESSION_ID}}",
+            cancel_url=f"{origin}/pricing",
+            client_reference_id=str(user_id),
+            metadata={"user_id": str(user_id)},
+        )
+
+        db = await get_db()
+        try:
+            await db.execute(
+                "INSERT INTO payments "
+                "(user_id, stripe_session_id, amount_cents, status) "
+                "VALUES (?, ?, ?, ?)",
+                (user_id, session.id, LIFETIME_PRICE_CENTS, "pending"),
+            )
+            await db.commit()
+        finally:
+            await db.close()
+
+        return JSONResponse({"checkout_url": session.url})
+    except stripe.StripeError as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.get("/checkout-success", response_class=HTMLResponse)
+async def checkout_success(request: Request) -> HTMLResponse:
+    user_id = get_current_user_id(request)
+    session_id = request.query_params.get("session_id", "")
+
+    if session_id and STRIPE_SECRET_KEY and user_id:
+        try:
+            session = stripe.checkout.Session.retrieve(session_id)
+            ref_match = session.client_reference_id == str(user_id)
+            if session.payment_status == "paid" and ref_match:
+                db = await get_db()
+                try:
+                    await db.execute(
+                        "UPDATE users SET is_premium = 1, "
+                        "stripe_payment_id = ?, "
+                        "premium_since = CURRENT_TIMESTAMP "
+                        "WHERE id = ?",
+                        (session.payment_intent, user_id),
+                    )
+                    await db.execute(
+                        "UPDATE payments SET status = 'completed', "
+                        "stripe_payment_intent = ? "
+                        "WHERE stripe_session_id = ?",
+                        (session.payment_intent, session_id),
+                    )
+                    await db.commit()
+                finally:
+                    await db.close()
+        except stripe.StripeError:
+            pass
+
+    return templates.TemplateResponse(request, "checkout_success.html", {"user_id": user_id})
+
+
+@app.post("/api/payment-webhook")
+async def payment_webhook(request: Request) -> JSONResponse:
+    payload = await request.body()
+    sig_header = request.headers.get("stripe-signature", "")
+
+    if not STRIPE_WEBHOOK_SECRET:
+        return JSONResponse(
+            {"error": "Webhook not configured"}, status_code=503,
+        )
+
+    try:
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, STRIPE_WEBHOOK_SECRET,
+        )
+    except (ValueError, stripe.SignatureVerificationError):
+        return JSONResponse(
+            {"error": "Invalid signature"}, status_code=400,
+        )
+
+    if event.get("type") == "checkout.session.completed":
+        session_data = event["data"]["object"]
+        user_id_str = (
+            session_data.get("client_reference_id")
+            or session_data.get("metadata", {}).get("user_id")
+        )
+        paid = session_data.get("payment_status") == "paid"
+        if user_id_str and paid:
+            uid = int(user_id_str)
+            pi = session_data.get("payment_intent", "")
+            db = await get_db()
+            try:
+                await db.execute(
+                    "UPDATE users SET is_premium = 1, "
+                    "stripe_payment_id = ?, "
+                    "premium_since = CURRENT_TIMESTAMP "
+                    "WHERE id = ?",
+                    (pi, uid),
+                )
+                await db.execute(
+                    "UPDATE payments "
+                    "SET status = 'completed', "
+                    "stripe_payment_intent = ? "
+                    "WHERE stripe_session_id = ?",
+                    (pi, session_data.get("id", "")),
+                )
+                await db.commit()
+            finally:
+                await db.close()
+
+    return JSONResponse({"status": "ok"})
 
 
 # ─── Error Handlers ──────────────────────────────────────────────

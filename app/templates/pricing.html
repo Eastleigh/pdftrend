@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pricing — PDF Trend Finder</title>
+  <meta name="description" content="Get lifetime access to PDF Trend Finder Premium for just $25. Unlimited searches, save ideas, export CSV, generate outlines, compare topics.">
+  <meta property="og:title" content="Pricing — PDF Trend Finder">
+  <meta property="og:description" content="Lifetime access for $25. Unlimited searches, save ideas, export CSV, generate outlines, compare topics — forever.">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary">
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --primary: #6C63FF; --primary-dark: #5A52E0; --primary-light: #8B85FF;
+      --accent: #00D4AA; --bg: #06060B; --bg-card: #0F0F18;
+      --bg-card-hover: #16162A; --text: #EEEEF0; --text-muted: #7878A0;
+      --border: #1E1E35; --success: #22C55E; --danger: #EF4444;
+      --warning: #F59E0B; --radius: 16px; --radius-sm: 10px;
+    }
+    [data-theme="light"] {
+      --primary: #5A52E0; --primary-dark: #4840C0; --primary-light: #6C63FF;
+      --accent: #00B894; --bg: #F5F5FA; --bg-card: #FFFFFF;
+      --bg-card-hover: #F0F0F8; --text: #1A1A2E; --text-muted: #6B6B8A;
+      --border: #E0E0EE; --success: #16A34A; --danger: #DC2626; --warning: #D97706;
+    }
+    [data-theme="light"] body::before { display: none; }
+    body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+    body::before {
+      content: ''; position: fixed; top: -50%; left: -50%; width: 200%; height: 200%;
+      background:
+        radial-gradient(circle at 20% 20%, rgba(108, 99, 255, 0.06) 0%, transparent 50%),
+        radial-gradient(circle at 80% 80%, rgba(0, 212, 170, 0.04) 0%, transparent 50%);
+      z-index: -1;
+    }
+
+    nav {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 16px 40px; max-width: 1400px; margin: 0 auto;
+    }
+    .logo { font-size: 1.2rem; font-weight: 800; color: var(--text); text-decoration: none; display: flex; align-items: center; gap: 8px; }
+    .logo-icon { width: 28px; height: 28px; background: var(--primary); border-radius: 7px; display: flex; align-items: center; justify-content: center; }
+    .logo-icon svg { width: 16px; height: 16px; }
+    .logo span { color: var(--primary); }
+    .nav-links { display: flex; gap: 20px; align-items: center; }
+    .nav-links a { color: var(--text-muted); text-decoration: none; font-size: 0.85rem; font-weight: 500; transition: color 0.2s; }
+    .nav-links a:hover { color: var(--text); }
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 8px; font-family: inherit; font-size: 0.85rem; font-weight: 600; text-decoration: none; cursor: pointer; transition: all 0.2s; border: none; }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover { background: var(--primary-dark); }
+    .btn-outline { background: transparent; color: var(--text); border: 1px solid var(--border); }
+    .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+    .theme-toggle {
+      width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--border);
+      background: var(--bg-card); color: var(--text-muted); cursor: pointer;
+      display: flex; align-items: center; justify-content: center; transition: all 0.2s;
+    }
+    .theme-toggle:hover { border-color: var(--primary); color: var(--primary); }
+
+    .container { max-width: 900px; margin: 0 auto; padding: 40px 40px 80px; }
+
+    .pricing-header { text-align: center; margin-bottom: 48px; }
+    .pricing-header h1 { font-size: 2.4rem; font-weight: 800; margin-bottom: 12px; letter-spacing: -1px; }
+    .pricing-header h1 em { font-style: normal; color: var(--primary); }
+    .pricing-header p { color: var(--text-muted); font-size: 1.1rem; max-width: 500px; margin: 0 auto; }
+
+    .pricing-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+
+    .plan-card {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 32px; position: relative; transition: all 0.3s;
+    }
+    .plan-card.featured {
+      border-color: var(--primary); box-shadow: 0 0 40px rgba(108, 99, 255, 0.15);
+    }
+    .plan-badge {
+      position: absolute; top: -12px; left: 50%; transform: translateX(-50%);
+      background: var(--primary); color: white; padding: 4px 16px; border-radius: 20px;
+      font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .plan-name { font-size: 1.2rem; font-weight: 700; margin-bottom: 8px; }
+    .plan-price { margin-bottom: 20px; }
+    .plan-price .amount { font-size: 2.8rem; font-weight: 800; letter-spacing: -2px; }
+    .plan-price .period { color: var(--text-muted); font-size: 0.9rem; }
+    .plan-price .was { color: var(--text-muted); font-size: 0.85rem; text-decoration: line-through; margin-left: 8px; }
+
+    .plan-features { list-style: none; margin-bottom: 28px; }
+    .plan-features li {
+      padding: 8px 0; font-size: 0.9rem; display: flex; align-items: center; gap: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    .plan-features li:last-child { border-bottom: none; }
+    .plan-features .check { color: var(--success); font-size: 1.1rem; flex-shrink: 0; }
+    .plan-features .cross { color: var(--text-muted); font-size: 1.1rem; flex-shrink: 0; opacity: 0.4; }
+    .plan-features .muted { color: var(--text-muted); }
+
+    .plan-cta {
+      width: 100%; padding: 14px; border-radius: 12px; font-family: inherit;
+      font-size: 1rem; font-weight: 700; cursor: pointer; transition: all 0.2s;
+      border: none; text-align: center; display: block; text-decoration: none;
+    }
+    .plan-cta-free { background: var(--bg-card-hover); color: var(--text-muted); border: 1px solid var(--border); }
+    .plan-cta-free:hover { border-color: var(--text-muted); }
+    .plan-cta-premium { background: var(--primary); color: white; }
+    .plan-cta-premium:hover { background: var(--primary-dark); transform: translateY(-1px); }
+    .plan-cta-premium:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+    .guarantee {
+      text-align: center; margin-top: 32px; padding: 20px;
+      background: rgba(0, 212, 170, 0.05); border: 1px solid rgba(0, 212, 170, 0.15);
+      border-radius: var(--radius-sm); color: var(--text-muted); font-size: 0.9rem;
+    }
+    .guarantee strong { color: var(--accent); }
+
+    .faq { margin-top: 48px; }
+    .faq h2 { font-size: 1.4rem; font-weight: 700; margin-bottom: 20px; text-align: center; }
+    .faq-item {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm);
+      padding: 18px 22px; margin-bottom: 10px; cursor: pointer; transition: all 0.2s;
+    }
+    .faq-item:hover { border-color: var(--primary); }
+    .faq-q { font-weight: 600; font-size: 0.95rem; display: flex; justify-content: space-between; align-items: center; }
+    .faq-a { color: var(--text-muted); font-size: 0.9rem; margin-top: 10px; display: none; line-height: 1.6; }
+    .faq-item.open .faq-a { display: block; }
+    .faq-item.open .faq-arrow { transform: rotate(180deg); }
+    .faq-arrow { color: var(--text-muted); transition: transform 0.2s; font-size: 0.8rem; }
+
+    .already-premium {
+      text-align: center; padding: 40px; background: rgba(0, 212, 170, 0.05);
+      border: 1px solid rgba(0, 212, 170, 0.2); border-radius: var(--radius); margin-bottom: 24px;
+    }
+    .already-premium h2 { color: var(--accent); margin-bottom: 8px; }
+    .already-premium p { color: var(--text-muted); }
+
+    .toast {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(100px);
+      background: var(--bg-card); border: 1px solid var(--border); padding: 12px 24px;
+      border-radius: 10px; font-size: 0.9rem; opacity: 0; transition: all 0.3s;
+      z-index: 9999; box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+
+    @media (max-width: 700px) {
+      .container { padding: 24px 16px 60px; }
+      nav { padding: 12px 16px; }
+      .pricing-header h1 { font-size: 1.6rem; }
+      .pricing-grid { grid-template-columns: 1fr; }
+      .plan-price .amount { font-size: 2.2rem; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="/" class="logo">
+    <div class="logo-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="4 18 8 12 12 15 16 8 20 10"/>
+        <circle cx="20" cy="10" r="1.5" fill="white"/>
+      </svg>
+    </div>
+    PDF <span>Trend Finder</span>
+  </a>
+  <div class="nav-links">
+    <a href="/search">Search</a>
+    {% if user_id %}
+      <a href="/saved">Saved Ideas</a>
+      <a href="/logout" class="btn btn-outline">Log Out</a>
+    {% else %}
+      <a href="/login" class="btn btn-outline">Log In</a>
+      <a href="/signup" class="btn btn-primary">Sign Up Free</a>
+    {% endif %}
+    <button class="theme-toggle" id="themeToggle" title="Toggle theme">
+      <svg id="themeIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.79A9 9 0 1111.21 3a7 7 0 009.79 9.79z"/></svg>
+    </button>
+  </div>
+</nav>
+
+<div class="container">
+  {% if is_premium %}
+  <div class="already-premium">
+    <h2>You're a Lifetime Premium Member</h2>
+    <p>You have unlimited access to all features. No recurring charges, ever.</p>
+    <a href="/search" class="btn btn-primary" style="margin-top:16px; display:inline-flex;">Go Search</a>
+  </div>
+  {% else %}
+
+  <div class="pricing-header">
+    <h1>One Price. <em>Forever.</em></h1>
+    <p>Pay once, get unlimited access to every feature. No subscriptions, no recurring charges.</p>
+  </div>
+
+  <div class="pricing-grid">
+    <div class="plan-card">
+      <div class="plan-name">Free</div>
+      <div class="plan-price">
+        <span class="amount">$0</span>
+        <span class="period">forever</span>
+      </div>
+      <ul class="plan-features">
+        <li><span class="check">&#10003;</span> 5 searches per day</li>
+        <li><span class="check">&#10003;</span> 40+ idea suggestions per search</li>
+        <li><span class="check">&#10003;</span> Interest over time charts</li>
+        <li><span class="check">&#10003;</span> Related &amp; rising queries</li>
+        <li><span class="check">&#10003;</span> 8 region support</li>
+        <li><span class="check">&#10003;</span> Competition score</li>
+        <li><span class="cross">&#10007;</span> <span class="muted">Save ideas</span></li>
+        <li><span class="cross">&#10007;</span> <span class="muted">Export CSV</span></li>
+        <li><span class="cross">&#10007;</span> <span class="muted">PDF outline generator</span></li>
+        <li><span class="cross">&#10007;</span> <span class="muted">Topic comparison</span></li>
+      </ul>
+      <a href="/search" class="plan-cta plan-cta-free">Continue Free</a>
+    </div>
+
+    <div class="plan-card featured">
+      <div class="plan-badge">Best Value</div>
+      <div class="plan-name">Lifetime Premium</div>
+      <div class="plan-price">
+        <span class="amount">$25</span>
+        <span class="period">one-time</span>
+        <span class="was">$67</span>
+      </div>
+      <ul class="plan-features">
+        <li><span class="check">&#10003;</span> <strong>Unlimited</strong> searches</li>
+        <li><span class="check">&#10003;</span> 40+ idea suggestions per search</li>
+        <li><span class="check">&#10003;</span> Interest over time charts</li>
+        <li><span class="check">&#10003;</span> Related &amp; rising queries</li>
+        <li><span class="check">&#10003;</span> 8 region support</li>
+        <li><span class="check">&#10003;</span> Competition score</li>
+        <li><span class="check">&#10003;</span> <strong>Save unlimited ideas</strong></li>
+        <li><span class="check">&#10003;</span> <strong>Export to CSV</strong></li>
+        <li><span class="check">&#10003;</span> <strong>PDF outline generator</strong></li>
+        <li><span class="check">&#10003;</span> <strong>Topic comparison charts</strong></li>
+      </ul>
+      <button class="plan-cta plan-cta-premium" id="checkoutBtn">
+        Get Lifetime Access — $25
+      </button>
+    </div>
+  </div>
+
+  <div class="guarantee">
+    <strong>No subscriptions. No hidden fees.</strong> Pay once and get every current and future feature — forever.
+    This is the same tool others charge $25 for — and we match it with more features.
+  </div>
+
+  {% endif %}
+
+  <div class="faq">
+    <h2>Frequently Asked Questions</h2>
+    <div class="faq-item">
+      <div class="faq-q">Is this really a one-time payment? <span class="faq-arrow">&#9662;</span></div>
+      <div class="faq-a">Yes. Pay $25 once and you get lifetime access. No monthly fees, no annual renewals, no hidden charges. Ever.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">What's included in the free plan? <span class="faq-arrow">&#9662;</span></div>
+      <div class="faq-a">Free users get 5 searches per day with full access to idea suggestions, trend charts, related queries, and competition scores. Premium features like saving ideas, CSV export, outline generation, and topic comparison require an upgrade.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">How does PDF Trend Finder compare to PDF Trend Lab? <span class="faq-arrow">&#9662;</span></div>
+      <div class="faq-a">PDF Trend Lab charges $25 for lifetime access. We match their price at $25 but offer way more features — 40+ suggestions per search, competition scoring, outline generation, topic comparison, and CSV export.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">Can I use this tool to find PDF guide ideas? <span class="faq-arrow">&#9662;</span></div>
+      <div class="faq-a">Absolutely. That's exactly what it's designed for. Search any niche, see what people are actually searching for, check competition levels, and generate PDF outlines — all from real-time Google data.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">Do I need an account? <span class="faq-arrow">&#9662;</span></div>
+      <div class="faq-a">You can search for free without an account. To upgrade to Premium, you'll need to create a free account first (takes 10 seconds).</div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// Theme
+function toggleTheme() {
+  const html = document.documentElement;
+  const current = html.getAttribute('data-theme') || 'dark';
+  const next = current === 'dark' ? 'light' : 'dark';
+  html.setAttribute('data-theme', next);
+  localStorage.setItem('ptf-theme', next);
+  updateThemeIcon(next);
+}
+function updateThemeIcon(theme) {
+  const icon = document.getElementById('themeIcon');
+  if (!icon) return;
+  icon.innerHTML = theme === 'light'
+    ? '<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>'
+    : '<path d="M21 12.79A9 9 0 1111.21 3a7 7 0 009.79 9.79z"/>';
+}
+(function() {
+  const saved = localStorage.getItem('ptf-theme');
+  if (saved) { document.documentElement.setAttribute('data-theme', saved); updateThemeIcon(saved); }
+})();
+document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+
+// FAQ
+document.querySelectorAll('.faq-item').forEach(item => {
+  item.addEventListener('click', () => item.classList.toggle('open'));
+});
+
+// Toast
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// Checkout
+const checkoutBtn = document.getElementById('checkoutBtn');
+if (checkoutBtn) {
+  checkoutBtn.addEventListener('click', async () => {
+    checkoutBtn.disabled = true;
+    checkoutBtn.textContent = 'Redirecting to checkout...';
+    try {
+      const resp = await fetch('/api/checkout', { method: 'POST' });
+      const data = await resp.json();
+      if (data.checkout_url) {
+        window.location.href = data.checkout_url;
+      } else if (data.error) {
+        showToast(data.error);
+        if (resp.status === 401) {
+          setTimeout(() => { window.location.href = '/signup'; }, 1500);
+        }
+        checkoutBtn.disabled = false;
+        checkoutBtn.textContent = 'Get Lifetime Access — $25';
+      }
+    } catch (e) {
+      showToast('Something went wrong. Please try again.');
+      checkoutBtn.disabled = false;
+      checkoutBtn.textContent = 'Get Lifetime Access — $25';
+    }
+  });
+}
+</script>
+</body>
+</html>

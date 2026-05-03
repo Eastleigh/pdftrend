@@ -319,8 +319,12 @@
     <a href="/search">Search</a>
     {% if user_id %}
       <a href="/saved">Saved Ideas</a>
+      {% if not is_premium %}
+        <a href="/pricing" class="btn btn-primary" style="background:var(--accent);">Upgrade — $25</a>
+      {% endif %}
       <a href="/logout" class="btn btn-outline">Log Out</a>
     {% else %}
+      <a href="/pricing">Pricing</a>
       <a href="/login" class="btn btn-outline">Log In</a>
       <a href="/signup" class="btn btn-primary">Sign Up Free</a>
     {% endif %}
@@ -485,12 +489,35 @@
   </div>
 </div>
 
+{% if not is_premium %}
+<div id="searchCounter" style="position:fixed;bottom:16px;right:16px;background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:8px 16px;font-size:0.8rem;color:var(--text-muted);z-index:100;display:flex;align-items:center;gap:8px;">
+  <span id="searchCountText">{{ remaining_searches }} searches left today</span>
+  {% if user_id %}
+    <a href="/pricing" style="color:var(--accent);font-weight:600;text-decoration:none;font-size:0.8rem;">Upgrade</a>
+  {% endif %}
+</div>
+{% endif %}
+
+<div class="modal-overlay" id="upgradeModal" style="display:none;">
+  <div class="modal" style="text-align:center;max-width:420px;">
+    <div style="font-size:2rem;margin-bottom:12px;">&#128274;</div>
+    <h3 id="upgradeTitle" style="margin-bottom:8px;">Premium Feature</h3>
+    <p id="upgradeDesc" style="color:var(--text-muted);font-size:0.9rem;margin-bottom:20px;line-height:1.5;">Upgrade to unlock this feature.</p>
+    <div class="modal-actions" style="justify-content:center;">
+      <a href="/pricing" class="btn btn-primary" style="background:var(--accent);">Upgrade — $25 Lifetime</a>
+      <button class="btn btn-outline" onclick="closeUpgradeModal()">Maybe Later</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
 let chart = null;
 let compareChart = null;
 const isLoggedIn = {{ 'true' if user_id else 'false' }};
+const isPremium = {{ 'true' if is_premium else 'false' }};
+let remainingSearches = {{ remaining_searches }};
 const COMPARE_COLORS = ['#6C63FF', '#00D4AA', '#F59E0B'];
 
 function showToast(msg) {
@@ -498,6 +525,34 @@ function showToast(msg) {
   t.textContent = msg;
   t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+const UPGRADE_MESSAGES = {
+  save: { title: 'Save Ideas with Premium', desc: 'Bookmark your best PDF ideas and access them anytime. Upgrade once, save unlimited ideas forever.' },
+  compare: { title: 'Compare Topics with Premium', desc: 'See how topics stack up side by side with interest-over-time charts. One-time upgrade, lifetime access.' },
+  outline: { title: 'Generate Outlines with Premium', desc: 'Auto-generate PDF outline templates from any trending topic. Pay once, generate unlimited outlines.' },
+  export: { title: 'Export CSV with Premium', desc: 'Download all your saved ideas as a spreadsheet. One-time payment for lifetime access.' },
+  search_limit: { title: 'Daily Search Limit Reached', desc: 'Free accounts get 5 searches per day. Upgrade to Premium for unlimited searches — pay once, search forever.' },
+};
+
+function showUpgradeModal(feature) {
+  const msg = UPGRADE_MESSAGES[feature] || UPGRADE_MESSAGES.save;
+  document.getElementById('upgradeTitle').textContent = msg.title;
+  document.getElementById('upgradeDesc').textContent = msg.desc;
+  const modal = document.getElementById('upgradeModal');
+  modal.style.display = '';
+  modal.classList.add('show');
+}
+
+function closeUpgradeModal() {
+  const modal = document.getElementById('upgradeModal');
+  modal.classList.remove('show');
+  setTimeout(() => { modal.style.display = 'none'; }, 200);
+}
+
+function updateSearchCounter() {
+  const el = document.getElementById('searchCountText');
+  if (el) el.textContent = remainingSearches + ' search' + (remainingSearches !== 1 ? 'es' : '') + ' left today';
 }
 
 function searchQuery(q) {
@@ -513,10 +568,20 @@ function doSearch() {
   const q = document.getElementById('searchInput').value.trim();
   if (!q) return;
 
+  if (!isPremium && remainingSearches <= 0) {
+    showUpgradeModal('search_limit');
+    return;
+  }
+
   const region = getRegion();
   history.replaceState(null, '', '/search?q=' + encodeURIComponent(q) + '&region=' + region);
   document.getElementById('emptyState').style.display = 'none';
   document.getElementById('resultsArea').style.display = 'grid';
+
+  if (!isPremium) {
+    remainingSearches = Math.max(0, remainingSearches - 1);
+    updateSearchCounter();
+  }
 
   // Record search
   fetch('/api/recent-search', {
@@ -590,6 +655,17 @@ async function fetchCompetition(q) {
 }
 
 async function fetchOutline(q) {
+  if (!isPremium) {
+    const card = document.getElementById('outlineCard');
+    card.style.display = 'block';
+    document.getElementById('outlineContent').innerHTML = `
+      <div style="text-align:center;padding:20px;">
+        <div style="font-size:1.5rem;margin-bottom:8px;">&#128274;</div>
+        <p style="color:var(--text-muted);margin-bottom:12px;">PDF outline generation is a Premium feature.</p>
+        <a href="/pricing" class="btn btn-primary" style="background:var(--accent);font-size:0.85rem;">Upgrade — $25 Lifetime</a>
+      </div>`;
+    return;
+  }
   const card = document.getElementById('outlineCard');
   const content = document.getElementById('outlineContent');
   card.style.display = 'block';
@@ -660,6 +736,19 @@ async function fetchTrendData(q, region) {
     const resp = await fetch('/api/trends/search?q=' + encodeURIComponent(q) + '&geo=' + region);
     const data = await resp.json();
     relatedLoading.style.display = 'none';
+
+    if (data.limit_reached) {
+      remainingSearches = 0;
+      updateSearchCounter();
+      showUpgradeModal('search_limit');
+      relatedList.innerHTML = '<p style="color:var(--text-muted);font-size:0.9rem;padding:12px">Daily search limit reached. <a href="/pricing" style="color:var(--accent);">Upgrade to Premium</a> for unlimited searches.</p>';
+      return;
+    }
+
+    if (data.error && !resp.ok) {
+      relatedList.innerHTML = '<p style="color:var(--text-muted);font-size:0.9rem;padding:12px">' + escHtml(data.error) + '</p>';
+      return;
+    }
 
     if (data.interest_over_time && data.interest_over_time.length > 0) {
       chartCard.style.display = 'block';
@@ -818,6 +907,10 @@ async function fetchTrending(region) {
 
 // Compare topics
 function openCompareModal() {
+  if (!isPremium) {
+    showUpgradeModal('compare');
+    return;
+  }
   const q = document.getElementById('searchInput').value.trim();
   if (q) document.getElementById('compareQ1').value = q;
   document.getElementById('compareModal').classList.add('show');
@@ -892,6 +985,10 @@ async function saveIdea(query, event) {
     showToast('Sign up free to save ideas');
     return;
   }
+  if (!isPremium) {
+    showUpgradeModal('save');
+    return;
+  }
   try {
     const resp = await fetch('/api/trends/save', {
       method: 'POST',
@@ -902,7 +999,11 @@ async function saveIdea(query, event) {
       showToast('Idea saved!');
     } else {
       const data = await resp.json();
-      showToast(data.detail || 'Error saving');
+      if (data.premium_required) {
+        showUpgradeModal('save');
+      } else {
+        showToast(data.detail || data.error || 'Error saving');
+      }
     }
   } catch (e) {
     showToast('Error saving idea');

@@ -23,6 +23,9 @@ async def init_db() -> None:
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 email TEXT UNIQUE NOT NULL,
                 password_hash TEXT NOT NULL,
+                is_premium INTEGER DEFAULT 0,
+                stripe_payment_id TEXT,
+                premium_since TIMESTAMP,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
 
@@ -51,11 +54,43 @@ async def init_db() -> None:
                 searched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
 
+            CREATE TABLE IF NOT EXISTS payments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                stripe_session_id TEXT,
+                stripe_payment_intent TEXT,
+                amount_cents INTEGER NOT NULL,
+                status TEXT NOT NULL DEFAULT 'pending',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            );
+
+            CREATE TABLE IF NOT EXISTS daily_searches (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_identifier TEXT NOT NULL,
+                search_date TEXT NOT NULL,
+                search_count INTEGER DEFAULT 1
+            );
+
             CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
             CREATE INDEX IF NOT EXISTS idx_saved_trends_user ON saved_trends(user_id);
             CREATE INDEX IF NOT EXISTS idx_search_history_user ON search_history(user_id);
             CREATE INDEX IF NOT EXISTS idx_recent_searches_session ON recent_searches(session_id);
+            CREATE INDEX IF NOT EXISTS idx_payments_user ON payments(user_id);
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_daily_searches_unique
+                ON daily_searches(user_identifier, search_date);
         """)
+
+        # Migrate existing users table if columns missing
+        cursor = await db.execute("PRAGMA table_info(users)")
+        columns = {row[1] for row in await cursor.fetchall()}
+        if "is_premium" not in columns:
+            await db.execute("ALTER TABLE users ADD COLUMN is_premium INTEGER DEFAULT 0")
+        if "stripe_payment_id" not in columns:
+            await db.execute("ALTER TABLE users ADD COLUMN stripe_payment_id TEXT")
+        if "premium_since" not in columns:
+            await db.execute("ALTER TABLE users ADD COLUMN premium_since TIMESTAMP")
+
         await db.commit()
     finally:
         await db.close()
